@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nodal Slide Apparatus Simulator</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; background:#f1f3f8; color:#2b3040; margin:0; padding:18px; }
+  h1 { margin:0 0 4px; color:#1f2d4a; text-align:center; }
+  p.subtitle { color:#566; margin:0 0 16px; text-align:center; font-size:14px; }
+  .layout { display:flex; gap:16px; flex-wrap:wrap; max-width:1320px; margin:0 auto; align-items:flex-start; }
+  .panel { background:#fff; padding:16px 18px; border-radius:8px; box-shadow:0 3px 8px rgba(0,0,0,.1); width:320px; flex:0 0 320px; }
+  .panel h3 { margin:0 0 10px; font-size:16px; }
+  .main { flex:1; min-width:560px; display:flex; flex-direction:column; gap:16px; }
+  .card { background:#fff; padding:14px; border-radius:8px; box-shadow:0 3px 8px rgba(0,0,0,.1); }
+  .card h4 { margin:0 0 6px; font-size:15px; color:#1f2d4a; }
+  canvas { background:#1e1e2f; border-radius:6px; display:block; max-width:100%; height:auto; }
+  .control-group { margin-bottom:12px; }
+  label { display:block; font-weight:bold; font-size:13px; margin-bottom:4px; }
+  select, input[type=range] { width:100%; }
+  .v { float:right; color:#0a6ed1; }
+  button { background:#0a6ed1; color:#fff; border:0; border-radius:4px; padding:9px 12px; width:100%; font-weight:bold; cursor:pointer; margin-top:6px; }
+  button.sec { background:#6b7280; }
+  button:hover { filter:brightness(.92); }
+  .note { font-size:13px; margin:2px 0 10px; line-height:1.5; }
+  table.obs { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:6px; }
+  table.obs th, table.obs td { border:1px solid #8a93a8; padding:7px 8px; text-align:center; }
+  table.obs th { background:#eef1f7; color:#1f2d4a; }
+  .empty { color:#aab; }
+  .cs h5 { margin:12px 0 6px; font-size:14px; color:#1f2d4a; }
+  .cs .eq { background:#eef1f7; padding:6px 10px; border-radius:4px; font-size:13px; margin-bottom:6px; }
+  .cs .st { font-size:13px; line-height:1.7; border-left:3px solid #0a6ed1; padding:4px 10px; margin:6px 0; }
+</style>
+</head>
+<body>
+<h1>Nodal Slide Simulator</h1>
+<p class="subtitle">Determination of the focal length of convex lenses and of their combination</p>
+
+<div class="layout">
+  <aside class="panel">
+    <h3>Experiment controls</h3>
+
+    <div class="control-group">
+      <label for="expSelect">Experiment</label>
+      <select id="expSelect" onchange="onMode()">
+        <option value="single">1. Single convex lens</option>
+        <option value="combination">2. Combination of convex lenses</option>
+      </select>
+    </div>
+
+    <div id="singleGroup">
+      <div class="control-group">
+        <label for="lensSelect">Lens</label>
+        <select id="lensSelect" onchange="update()">
+          <option value="1">1</option>
+          <option value="2">2</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="faceSelect">Light incident on</label>
+        <select id="faceSelect" onchange="update()">
+          <option value="one">one face</option>
+          <option value="other">other face</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="control-group" id="dGroup" style="display:none">
+      <label>Distance between the two lenses (d) <span id="dVal" class="v"></span></label>
+      <input type="range" id="dRange" min="0.2" max="15" value="4" step="0.1" oninput="update()">
+      <div style="margin-top:6px;font-size:12px">Type a value: <input type="number" id="dNum" min="0.2" max="15" step="0.1" value="4" style="width:70px" oninput="setSep(this.value)"> cm</div>
+    </div>
+
+    <div class="control-group">
+      <label>Position of cross-slit (a) <span id="aVal" class="v"></span></label>
+      <input type="range" id="aRange" min="2" max="42" value="20" step="0.1" oninput="update()">
+    </div>
+    <div class="control-group">
+      <label>Position of nodal slide (b) <span id="bVal" class="v"></span></label>
+      <input type="range" id="bRange" min="10" max="58" value="30" step="0.1" oninput="update()">
+    </div>
+
+    <div class="control-group">
+      <label>Rotation of nodal assembly (about pivot) <span id="rVal" class="v"></span></label>
+      <input type="range" id="rRange" min="0" max="360" value="0" step="0.5" oninput="update()">
+      <div style="margin-top:6px;font-size:12px">Type a value: <input type="number" id="rNum" min="0" max="360" step="0.5" value="0" style="width:70px" oninput="setRot(this.value)"> °</div>
+    </div>
+
+    <div class="control-group">
+      <label>Position of plane mirror <span id="mVal" class="v"></span></label>
+      <input type="range" id="mRange" min="35" max="75" value="70" step="0.1" oninput="update()">
+      <div style="margin-top:6px;font-size:12px">Type a value: <input type="number" id="mNum" min="35" max="75" step="0.1" value="70" style="width:70px" oninput="setMirror(this.value)"> cm</div>
+    </div>
+
+    <button onclick="recordReading()">Record reading in table</button>
+    <button class="sec" onclick="clearTables()">Clear tables</button>
+  </aside>
+
+  <section class="main">
+    <div class="card">
+      <canvas id="simCanvas" width="900" height="400"></canvas>
+      <div id="focusStatus" class="note" style="margin-top:8px;font-weight:bold"></div>
+    </div>
+
+    <div class="card">
+      <h4>Table for determination of focal length f of a convex lens</h4>
+      <div class="note">Scale, least count = 0.1 cm &nbsp;|&nbsp; Position of the lamp = 0 cm</div>
+      <table class="obs" id="tbl1"></table>
+    </div>
+
+    <div class="card">
+      <h4>Table for determination of focal length F of combination of convex lenses</h4>
+      <div class="note">Scale, least count = 0.1 cm &nbsp;|&nbsp; Position of the lamp = 0 cm</div>
+      <table class="obs" id="tbl2"></table>
+    </div>
+
+    <div class="card">
+      <h4>Calculations</h4>
+      <div id="calc"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+/*PHYSICS_START*/
+const XS_SRC = 0;               // lamp position (cm)
+const AP = 3.5, MH = 5.5;       // lens semi-aperture, mirror half-height (cm)
+const S = { mode:'single', f1:18, f2:18.6, d:4, a:20, xP:30, off:0, xM:70, rot:0, tilt:0, shift:0 };
+const rad = a => a * Math.PI / 180;
+const deg = a => a * 180 / Math.PI;
+const nrm = (x, y) => { const m = Math.hypot(x, y); return { x:x/m, y:y/m }; };
+const dot = (a, b) => a.x*b.x + a.y*b.y;
+
+function effF() {
+  if (S.mode === 'single') return S.f1;
+  return 1 / (1/S.f1 + 1/S.f2 - S.d/(S.f1*S.f2));
+}
+function cardinal() {
+  if (S.mode === 'single') return { F:S.f1, hN:0, hN2:0 };
+  const F = effF();
+  return { F, hN: -S.d/2 + F*S.d/S.f2, hN2: S.d/2 - F*S.d/S.f1 };
+}
+function rotPoint(x) {
+  const th = rad(S.rot), r = x - S.xP;
+  return { x: S.xP + r*Math.cos(th), y: r*Math.sin(th) };
+}
+function lensList() {
+  const th = rad(S.rot), c = Math.cos(th), s = Math.sin(th), xG = S.xP + S.off;
+  const bases = S.mode === 'single' ? [[xG + S.shift, S.f1]] : [[xG - S.d/2, S.f1], [xG + S.d/2, S.f2]];
+  return bases.map(([x, f]) => ({ x, f, c: rotPoint(x), n:{x:c, y:s}, t:{x:-s, y:c} }));
+}
+function mirrorGeom() {
+  const a = rad(S.tilt);
+  return { c:{x:S.xM, y:0}, n:{x:Math.cos(a), y:Math.sin(a)}, t:{x:-Math.sin(a), y:Math.cos(a)} };
+}
+function hitPlane(p, d, c, n, t) {
+  const dn = dot(d, n);
+  if (Math.abs(dn) < 1e-9) return null;
+  const s = ((c.x-p.x)*n.x + (c.y-p.y)*n.y) / dn;
+  if (s <= 1e-9) return null;
+  const q = { x:p.x + s*d.x, y:p.y + s*d.y };
+  return { q, h: (q.x-c.x)*t.x + (q.y-c.y)*t.y };
+}
+function refractThin(d, L, h) {
+  const dn = dot(d, L.n), sg = Math.sign(dn), dt = dot(d, L.t);
+  const u = dt/Math.abs(dn) - h/L.f;
+  return nrm(sg*L.n.x + u*L.t.x, sg*L.n.y + u*L.t.y);
+}
+function trace(src, target) {
+  const L = lensList(), M = mirrorGeom();
+  let p = { x:src.x, y:src.y }, d = nrm(target.x - src.x, target.y - src.y);
+  const res = { segs:[], blocked:null, imgY:null };
+  for (let i = 0; i < L.length; i++) {
+    const hit = hitPlane(p, d, L[i].c, L[i].n, L[i].t);
+    if (!hit) { res.blocked = { at:p }; return res; }
+    res.segs.push({ a:p, b:hit.q, k: i === 0 ? 'inc' : 'mid' });
+    if (Math.abs(hit.h) > AP) { res.blocked = { at:hit.q }; return res; }
+    d = refractThin(d, L[i], hit.h); p = hit.q;
+  }
+  res.slope = d.y / d.x;                       // beam slope after the last lens (0 = parallel to the bench)
+  const hm = hitPlane(p, d, M.c, M.n, M.t);
+  if (!hm) { res.blocked = { at:p }; return res; }
+  res.segs.push({ a:p, b:hm.q, k:'mid' });
+  if (Math.abs(hm.h) > MH) { res.blocked = { at:hm.q }; return res; }
+  const dn = dot(d, M.n);
+  d = { x:d.x - 2*dn*M.n.x, y:d.y - 2*dn*M.n.y }; p = hm.q;
+  for (let i = L.length - 1; i >= 0; i--) {
+    const hit = hitPlane(p, d, L[i].c, L[i].n, L[i].t);
+    if (!hit) { res.blocked = { at:p }; return res; }
+    res.segs.push({ a:p, b:hit.q, k: i === L.length-1 ? 'ret' : 'img' });
+    if (Math.abs(hit.h) > AP) { res.blocked = { at:hit.q }; return res; }
+    d = refractThin(d, L[i], hit.h); p = hit.q;
+  }
+  if (d.x >= -1e-9) { res.blocked = { at:p }; return res; }
+  const s = (S.a - p.x) / d.x;
+  const q = { x:S.a, y:p.y + s*d.y };
+  res.segs.push({ a:p, b:q, k:'img' });
+  res.imgY = q.y;
+  return res;
+}
+function runExperiment() {
+  const L = lensList(), x1 = L[0].x, rays = [];
+  const sc = (x1 - S.a) / (L[L.length-1].x - S.a);   // keep rays inside the aperture of the last lens
+  [-2.4, -0.8, 0.8, 2.4].forEach((ht, k) =>
+    rays.push({ r: trace({x:S.a, y:0}, {x:x1, y:ht*sc}), k }));
+  return { rays };
+}
+/*PHYSICS_END*/
+
+/* ---------------- UI ---------------- */
+const $ = id => document.getElementById(id);
+const F_LENS = { '1': 18, '2': 18.6 };
+// offset of the lens's principal plane from its mounting centre; reversing the lens (other face) flips its sign
+const E_LENS = { '1': 0.2, '2': 0.2 };
+// pivot / lens-holder error of the combination: the nodal slide pivot sits slightly in front of the true nodal point,
+// set to 0 so the measured F = (b − a) matches the theoretical value (to the 0.1 cm least count of the scale)
+const COMB_ERR = d => 0;
+let rec1 = {};      // keys like '1-one'  -> {a,b}
+let rec2 = [];      // rows {d,a,b}
+
+function readParams() {
+  S.mode = $('expSelect').value;
+  S.f1 = S.mode === 'single' ? F_LENS[$('lensSelect').value] : F_LENS['1'];
+  S.f2 = F_LENS['2'];
+  S.shift = S.mode === 'single' ? ($('faceSelect').value === 'one' ? 1 : -1) * E_LENS[$('lensSelect').value] : 0;
+  S.d = +$('dRange').value;
+  S.a = +$('aRange').value;
+  S.rot = +$('rRange').value;
+  $('rVal').textContent = S.rot.toFixed(1) + '°';
+  if (document.activeElement !== $('rNum')) $('rNum').value = S.rot.toFixed(1);
+  let b = +$('bRange').value;
+  const half = S.mode === 'single' ? 0 : S.d/2;
+  S.xP = b;
+  S.off = -cardinal().hN - (S.mode === 'single' ? 0 : COMB_ERR(S.d));                    // nodal slide placed at the nodal point of the lens system
+  const left = S.xP + S.off - half;
+  if (left < S.a + 3) { S.xP = b = S.a + 3 - S.off + half; $('bRange').value = b; }
+  const right = S.xP + S.off + half;
+  // mirror must stay behind the last lens (at least 3 cm beyond it)
+  const mMin = right + 3;
+  let m = +$('mRange').value;
+  if (m < mMin) { m = Math.min(75, mMin); $('mRange').value = m; }
+  S.xM = m;
+  $('mVal').textContent = m.toFixed(1) + ' cm';
+  if (document.activeElement !== $('mNum')) $('mNum').value = m.toFixed(1);
+  $('dVal').textContent = S.d.toFixed(1) + ' cm';
+  if (document.activeElement !== $('dNum')) $('dNum').value = S.d;
+  $('aVal').textContent = S.a.toFixed(1) + ' cm';
+  $('bVal').textContent = (+$('bRange').value).toFixed(1) + ' cm';
+}
+function setSep(v) {
+  v = parseFloat(v);
+  if (isNaN(v)) return;
+  $('dRange').value = Math.max(0.2, Math.min(15, v));
+  update();
+}
+function setRot(v) {
+  v = parseFloat(v);
+  if (isNaN(v)) return;
+  $('rRange').value = Math.max(0, Math.min(360, v));
+  update();
+}
+function setMirror(v) {
+  v = parseFloat(v);
+  if (isNaN(v)) return;
+  $('mRange').value = Math.max(35, Math.min(75, v));
+  update();
+}
+function onMode() {
+  const c = $('expSelect').value === 'combination';
+  $('singleGroup').style.display = c ? 'none' : 'block';
+  $('dGroup').style.display = c ? 'block' : 'none';
+  update();
+}
+
+/* ---- tables ---- */
+const f1d = n => n.toFixed(1);
+const blank = '<span class="empty">–</span>';
+function recordReading() {
+  const a = +$('aRange').value, b = +$('bRange').value, m = +$('mRange').value, r = +$('rRange').value;
+  if ($('expSelect').value === 'single') {
+    rec1[$('lensSelect').value + '-' + $('faceSelect').value] = { a, b, m, r };
+  } else {
+    const d = +$('dRange').value, i = rec2.findIndex(r => Math.abs(r.d - d) < 1e-6);
+    if (i >= 0) rec2[i] = { d, a, b, m, r }; else rec2.push({ d, a, b, m, r });
+  }
+  renderTables();
+}
+function clearTables() { rec1 = {}; rec2 = []; renderTables(); }
+function meanF(lens) {
+  const v = ['one', 'other'].map(f => rec1[lens + '-' + f]).filter(Boolean).map(r => r.b - r.a);
+  return v.length === 2 ? (v[0] + v[1]) / 2 : null;
+}
+// f1, f2 used for the theoretical value: measured means from table 1 when both faces are recorded, else the lens values shown by the simulator
+function lensF() {
+  const m1 = meanF('1'), m2 = meanF('2');
+  return { f1: m1 !== null ? m1 : F_LENS['1'], f2: m2 !== null ? m2 : F_LENS['2'], measured: m1 !== null && m2 !== null };
+}
+function theoF(d) { const l = lensF(); return l.f1 * l.f2 / (l.f1 + l.f2 - d); }
+function renderTables() {
+  let h = '<tr><th>Lens</th><th>Light incident on</th><th>Position of cross-slit (a)</th><th>Position of nodal slide (b)</th><th>Position of mirror</th><th>(b − a)</th><th>Mean of (b − a)</th></tr>';
+  ['1', '2'].forEach(l => {
+    const m = meanF(l);
+    ['one', 'other'].forEach((f, i) => {
+      const r = rec1[l + '-' + f];
+      h += '<tr>' + (i === 0 ? '<td rowspan="2">' + l + '</td>' : '') +
+        '<td>' + (f === 'one' ? 'one face' : 'other face') + '</td>' +
+        '<td>' + (r ? f1d(r.a) + ' cm' : blank) + '</td><td>' + (r ? f1d(r.b) + ' cm' : blank) + '</td>' +
+        '<td>' + (r ? f1d(r.m) + ' cm' : blank) + '</td>' +
+        '<td>' + (r ? f1d(r.b - r.a) + ' cm' : blank) + '</td>' +
+        (i === 0 ? '<td rowspan="2">' + (m !== null ? 'f<sub>' + l + '</sub> = ' + f1d(m) + ' cm' : blank) + '</td>' : '') + '</tr>';
+    });
+  });
+  $('tbl1').innerHTML = h;
+
+  h = '<tr><th>Distance between the two lenses (d)</th><th>Position of cross-slit (a)</th><th>Position of nodal slide (b)</th><th>Position of mirror</th><th>Experimental F<sub>exp</sub> = (b − a)</th><th>Theoretical F<sub>theo</sub> = f<sub>1</sub>f<sub>2</sub> / (f<sub>1</sub> + f<sub>2</sub> − d)</th></tr>';
+  const nRows = Math.max(4, rec2.length);
+  for (let i = 0; i < nRows; i++) {
+    const r = rec2[i];
+    if (r) {
+      h += '<tr><td>d<sub>' + (i + 1) + '</sub> = ' + f1d(r.d) + ' cm</td><td>' + f1d(r.a) + ' cm</td><td>' + f1d(r.b) + ' cm</td>' +
+           '<td>' + f1d(r.m) + ' cm</td><td>' + f1d(r.b - r.a) + ' cm</td><td>' + f1d(theoF(r.d)) + ' cm</td></tr>';
+    } else {
+      h += '<tr><td>d<sub>' + (i + 1) + '</sub> = ' + blank + '</td><td>' + blank + '</td><td>' + blank + '</td><td>' + blank + '</td><td>' + blank + '</td><td>' + blank + '</td></tr>';
+    }
+  }
+  $('tbl2').innerHTML = h;
+  renderCalc();
+}
+
+/* ---- step-by-step calculations (experimental values only) ---- */
+function renderCalc() {
+  const lf = lensF();
+  let h = '<div class="cs"><h5>Part 1 — Focal length f of a single convex lens</h5>' +
+          '<div class="eq">f = (b − a) for each face; mean f = [(b − a)<sub>one face</sub> + (b − a)<sub>other face</sub>] / 2</div>';
+  ['1', '2'].forEach(l => {
+    const r1 = rec1[l + '-one'], r2 = rec1[l + '-other'];
+    h += '<div class="st"><b>Lens ' + l + '</b><br>';
+    if (r1 && r2) {
+      const v1 = r1.b - r1.a, v2 = r2.b - r2.a, m = (v1 + v2) / 2;
+      h += 'One face: (b − a) = ' + f1d(r1.b) + ' − ' + f1d(r1.a) + ' = <b>' + f1d(v1) + ' cm</b><br>' +
+           'Other face: (b − a) = ' + f1d(r2.b) + ' − ' + f1d(r2.a) + ' = <b>' + f1d(v2) + ' cm</b><br>' +
+           'f<sub>' + l + '</sub> = (' + f1d(v1) + ' + ' + f1d(v2) + ') / 2 = <b>' + f1d(m) + ' cm</b>';
+    } else {
+      h += '<span class="empty">Record both faces of lens ' + l + ' to see the calculation.</span>';
+    }
+    h += '</div>';
+  });
+  h += '</div><div class="cs"><h5>Part 2 — Focal length F of the combination</h5>' +
+       '<div class="eq">F<sub>exp</sub> = (b − a) &nbsp;&nbsp;|&nbsp;&nbsp; F<sub>theo</sub> = f<sub>1</sub>f<sub>2</sub> / (f<sub>1</sub> + f<sub>2</sub> − d)</div>' +
+       '<div class="note">Using f<sub>1</sub> = ' + f1d(lf.f1) + ' cm and f<sub>2</sub> = ' + f1d(lf.f2) + ' cm' +
+       (lf.measured ? ' (measured in Part 1).' : ' (lens values of the simulator; record both faces of both lenses in Part 1 to use your measured f).') + '</div>';
+  if (!rec2.length) h += '<div class="st"><span class="empty">Record readings for the combination to see the calculation.</span></div>';
+  rec2.forEach((r, i) => {
+    h += '<div class="st"><b>d<sub>' + (i + 1) + '</sub> = ' + f1d(r.d) + ' cm</b><br>' +
+         'F<sub>exp</sub> = b − a = ' + f1d(r.b) + ' − ' + f1d(r.a) + ' = <b>' + f1d(r.b - r.a) + ' cm</b><br>' +
+         'F<sub>theo</sub> = (' + f1d(lf.f1) + ' × ' + f1d(lf.f2) + ') / (' + f1d(lf.f1) + ' + ' + f1d(lf.f2) + ' − ' + f1d(r.d) + ') = ' +
+         (lf.f1 * lf.f2).toFixed(2) + ' / ' + (lf.f1 + lf.f2 - r.d).toFixed(2) + ' = ' + theoF(r.d).toFixed(2) + ' ≈ <b>' + f1d(theoF(r.d)) + ' cm</b> (to the 0.1 cm least count)</div>';
+  });
+  h += '</div>';
+  $('calc').innerHTML = h;
+}
+
+/* ---- main drawing ---- */
+const cv = $('simCanvas'), ctx = cv.getContext('2d');
+const SC = 11.2, X0 = 32, Y0 = 190, RAILY = 340;
+const P = (x, y) => ({ x: X0 + x*SC, y: Y0 - y*SC });
+const KCOL = { inc:'rgba(255,214,10,0.9)', mid:'rgba(110,255,140,0.9)', ret:'rgba(255,140,40,0.95)', img:'rgba(255,105,210,0.95)' };
+const KNAME = { inc:'Incident (slit → lens)', mid:'Refracted by lens', ret:'Reflected by mirror', img:'Refracted back → image' };
+
+function chevron(a, b, col, t) {
+  const pa = P(a.x, a.y), pb = P(b.x, b.y);
+  const dx = pb.x - pa.x, dy = pb.y - pa.y, len = Math.hypot(dx, dy);
+  if (len < 30) return;
+  const ux = dx/len, uy = dy/len, cx = pa.x + dx*t, cy = pa.y + dy*t;
+  ctx.fillStyle = col; ctx.beginPath();
+  ctx.moveTo(cx + ux*6, cy + uy*6);
+  ctx.lineTo(cx - ux*5 - uy*4, cy - uy*5 + ux*4);
+  ctx.lineTo(cx - ux*5 + uy*4, cy - uy*5 - ux*4);
+  ctx.closePath(); ctx.fill();
+}
+function label(txt, x, y, col, align) {
+  ctx.fillStyle = col || '#cfd3e6'; ctx.font = '11px Arial'; ctx.textAlign = align || 'center'; ctx.fillText(txt, x, y);
+}
+function lensShape(c, height, bulge) {
+  c.beginPath();
+  c.moveTo(0, -height/2);
+  c.bezierCurveTo(-bulge*1.35, -height/4, -bulge*1.35, height/4, 0, height/2);
+  c.bezierCurveTo(bulge*1.35, height/4, bulge*1.35, -height/4, 0, -height/2);
+  c.closePath();
+  c.fillStyle = 'rgba(0,210,255,0.28)'; c.fill();
+  c.strokeStyle = '#00d2ff'; c.lineWidth = 2.5; c.stroke();
+}
+
+function drawMain(ex) {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  label('TOP VIEW (schematic)', 12, 18, '#8d93b0', 'left');
+
+  // bench rail + scale
+  ctx.fillStyle = '#4a4f5c'; ctx.fillRect(X0 - 10, RAILY - 4, 75*SC + 20, 8);
+  ctx.fillStyle = '#b5bad0';
+  for (let cm = 0; cm <= 75; cm += 5) {
+    const px = P(cm, 0).x;
+    ctx.fillRect(px - 0.5, RAILY + 4, 1, cm % 10 === 0 ? 8 : 4);
+    if (cm % 10 === 0) label(cm + '', px, RAILY + 23, '#b5bad0');
+  }
+  label('bench scale (cm)', P(72, 0).x, RAILY + 36, '#8d93b0', 'right');
+  [[XS_SRC, '#ffcc00'], [S.a, '#ffcc00'], [S.xP, '#3ddc84'], [S.xM, '#a0e1ff']].forEach(([x, col]) => {
+    const px = P(x, 0).x;
+    ctx.setLineDash([2, 4]); ctx.strokeStyle = 'rgba(180,185,210,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(px, Y0 + 70); ctx.lineTo(px, RAILY - 6); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#2b2f3a'; ctx.fillRect(px - 9, RAILY - 12, 18, 9);
+    ctx.fillStyle = col; ctx.fillRect(px - 9, RAILY - 12, 18, 2);
+  });
+  ctx.setLineDash([8, 5]); ctx.strokeStyle = 'rgba(200,205,230,0.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(P(0, 0).x, Y0); ctx.lineTo(P(75, 0).x, Y0); ctx.stroke(); ctx.setLineDash([]);
+
+  // lamp
+  const lp = P(XS_SRC, 0), sp = P(S.a, 0);
+  ctx.fillStyle = 'rgba(255,230,120,0.07)';
+  ctx.beginPath(); ctx.moveTo(lp.x + 12, Y0 - 8); ctx.lineTo(sp.x, Y0 - 1.2*SC - 4); ctx.lineTo(sp.x, Y0 + 1.2*SC + 4); ctx.lineTo(lp.x + 12, Y0 + 8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#252833'; ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
+  ctx.fillRect(lp.x - 14, Y0 - 26, 26, 52); ctx.strokeRect(lp.x - 14, Y0 - 26, 26, 52);
+  const g = ctx.createRadialGradient(lp.x + 4, Y0, 1, lp.x + 4, Y0, 16);
+  g.addColorStop(0, 'rgba(255,240,150,1)'); g.addColorStop(1, 'rgba(255,200,0,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(lp.x + 4, Y0, 16, 0, 6.3); ctx.fill();
+  ctx.fillStyle = '#fff3a0'; ctx.beginPath(); ctx.arc(lp.x + 4, Y0, 5, 0, 6.3); ctx.fill();
+  label('Lamp (0 cm)', lp.x, Y0 + 44);
+
+  // cross-slit plate
+  ctx.fillStyle = '#0c0c10'; ctx.strokeStyle = '#8a8fa6'; ctx.lineWidth = 1;
+  const slitHalf = 1.2*SC;
+  ctx.fillRect(sp.x - 3, Y0 - 5*SC, 6, 5*SC - slitHalf); ctx.strokeRect(sp.x - 3, Y0 - 5*SC, 6, 5*SC - slitHalf);
+  ctx.fillRect(sp.x - 3, Y0 + slitHalf, 6, 5*SC - slitHalf); ctx.strokeRect(sp.x - 3, Y0 + slitHalf, 6, 5*SC - slitHalf);
+  ctx.fillStyle = 'rgba(255,235,60,0.95)'; ctx.fillRect(sp.x - 1.5, Y0 - slitHalf, 3, 2*slitHalf);
+  label('Cross-slit (a)', sp.x, Y0 + 5*SC + 14);
+
+  // nodal slide
+  const ra = rotPoint(S.xP - 9), rb = rotPoint(S.xP + 12), a0 = P(ra.x, ra.y), a1 = P(rb.x, rb.y);
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = '#2f3340'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(a1.x, a1.y); ctx.stroke();
+  ctx.strokeStyle = '#59607a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(a1.x, a1.y); ctx.stroke();
+  const pv = P(S.xP, 0);
+  ctx.fillStyle = '#2b2f3a'; ctx.beginPath(); ctx.arc(pv.x, pv.y, 15, 0, 6.3); ctx.fill();
+  ctx.strokeStyle = '#4b5166'; ctx.lineWidth = 2; ctx.stroke();
+
+  // rays
+  ctx.lineCap = 'round';
+  ex.rays.forEach(o => {
+    o.r.segs.forEach(sg => {
+      const a = P(sg.a.x, sg.a.y), b = P(sg.b.x, sg.b.y);
+      ctx.strokeStyle = KCOL[sg.k]; ctx.lineWidth = 1.6;
+      ctx.setLineDash(sg.k === 'ret' ? [7, 4] : []);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.setLineDash([]);
+      if (o.k === 0 || o.k === 3) chevron(sg.a, sg.b, KCOL[sg.k], 0.55);
+    });
+    if (o.r.blocked) {
+      const b = P(o.r.blocked.at.x, o.r.blocked.at.y);
+      ctx.strokeStyle = '#ff4d4d'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(b.x - 3, b.y - 3); ctx.lineTo(b.x + 3, b.y + 3); ctx.moveTo(b.x + 3, b.y - 3); ctx.lineTo(b.x - 3, b.y + 3); ctx.stroke();
+    }
+  });
+
+  // lenses
+  lensList().forEach(l => {
+    const pc = P(l.c.x, l.c.y);
+    ctx.save(); ctx.translate(pc.x, pc.y); ctx.rotate(-rad(S.rot));
+    lensShape(ctx, 2*AP*SC, Math.max(3.5, Math.min(10, 110 / l.f)));
+    ctx.restore();
+  });
+  label('Nodal slide (b)', pv.x, Y0 + 5*SC + 14, '#6fe6a0');
+
+  // plane mirror
+  const M = mirrorGeom();
+  const m0 = P(M.c.x, -MH), m1 = P(M.c.x, MH);
+  ctx.strokeStyle = '#4f6f80'; ctx.lineWidth = 1;
+  for (let u = -MH; u <= MH; u += 0.5) {
+    const s0 = P(M.c.x, u), s1 = P(M.c.x + 0.8, u + 0.5);
+    ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.stroke();
+  }
+  ctx.strokeStyle = '#a0e1ff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(m0.x, m0.y); ctx.lineTo(m1.x, m1.y); ctx.stroke();
+  label('Plane mirror', P(M.c.x, 0).x, Y0 + 5.5*SC + 14);
+
+  Object.keys(KNAME).forEach((k, i) => {
+    const x = i % 2 === 0 ? 470 : 690, y = 20 + Math.floor(i/2)*18;
+    ctx.strokeStyle = KCOL[k]; ctx.lineWidth = 2; ctx.setLineDash(k === 'ret' ? [6, 3] : []);
+    ctx.beginPath(); ctx.moveTo(x, y - 4); ctx.lineTo(x + 24, y - 4); ctx.stroke(); ctx.setLineDash([]);
+    label(KNAME[k], x + 30, y, '#cfd3e6', 'left');
+  });
+}
+
+function update() {
+  readParams();
+  const ex = runExperiment();
+  drawMain(ex);
+  const ys = ex.rays.map(o => o.r.imgY), el = $('focusStatus');
+  if (ys.some(y => y === null)) {
+    el.style.color = '#b45309';
+    el.textContent = 'Some rays are blocked (red ×) – move the cross-slit, nodal slide or assembly rotation so the rays stay inside the lens and mirror.';
+  } else {
+    const spread = Math.max(...ys) - Math.min(...ys);
+    const sl = ex.rays.map(o => o.r.slope), par = Math.max(...sl.map(Math.abs)) < 0.005;
+    // defocus: how far (b − a) is from the exact focus position of the lens system (cm)
+    const defocus = S.xP + S.shift - S.a - effF();
+    if (spread < 0.15 && par) {
+      if (Math.round(10 * (S.xP - S.a)) === Math.round(10 * Number((effF() - S.shift).toFixed(1)))) { el.style.color = '#15803d'; el.textContent = 'Exact focus: parallel beam reaches the mirror and the returning rays converge on the cross-slit. Record the reading.'; }
+      else { el.style.color = '#b45309'; el.textContent = 'Almost focused – fine-tune the nodal slide: ' + (defocus > 0 ? 'decrease' : 'increase') + ' (b) by about ' + Math.abs(defocus).toFixed(1) + ' cm until the status turns green.'; }
+    }
+    else if (spread < 0.08) { el.style.color = '#b45309'; el.textContent = 'The image falls on the slit only because the beam is being focused on the mirror – the beam between lens and mirror is not parallel, so do not record yet. The beam is ' + (sl[3] > 0 ? 'diverging: increase (b − a).' : 'converging: decrease (b − a).'); }
+    else { el.style.color = '#b91c1c'; el.textContent = 'Returning rays do not converge on the cross-slit – adjust the position of the cross-slit (a) until the image coincides with it. Spread at slit plane: ' + spread.toFixed(2) + ' cm.'; }
+  }
+}
+window.onload = function () { onMode(); renderTables(); };
+</script>
+</body>
+</html>
